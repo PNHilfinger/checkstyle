@@ -79,7 +79,6 @@
         <!-- See http://checkstyle.sf.net/config_javadoc.html -->
 	<!-- and docs/config_javadoc.txt in the CS61B version.-->
         <module name="JavadocMethod61b">
-          <property name="allowUndeclaredRTE" value="true"/>
           <property name="allowNarrativeParamTags" value="true"/>
           <property name="allowNarrativeReturnTags" value="true"/>
           <property name="unusedParamFormat" 
