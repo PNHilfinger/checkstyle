@@ -1,0 +1,7 @@
+package ucb.checkstyle;
+
+final class Version {
+
+    public final static String VERSION = "@VERSION@";
+
+}
