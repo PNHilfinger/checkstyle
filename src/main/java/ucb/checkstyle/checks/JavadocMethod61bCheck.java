@@ -24,6 +24,7 @@ import antlr.collections.AST;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.puppycrawl.tools.checkstyle.FileStatefulCheck;
 import com.puppycrawl.tools.checkstyle.api.DetailAST;
 import com.puppycrawl.tools.checkstyle.api.FileContents;
 import com.puppycrawl.tools.checkstyle.api.FullIdent;
@@ -74,6 +75,7 @@ import java.util.regex.PatternSyntaxException;
  * @author Paul Hilfinger
  * @version 1.0 (from JavadocMethodCheck in checkstyle-6.8.1)
  */
+@FileStatefulCheck
 public class JavadocMethod61bCheck extends JavadocMethodCheck {
 
     /**
