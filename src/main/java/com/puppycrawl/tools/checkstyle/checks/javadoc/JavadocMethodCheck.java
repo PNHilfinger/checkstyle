@@ -362,7 +362,7 @@ public class JavadocMethodCheck extends AbstractCheck {
     private String currentClassName;
 
     /** Specify the access modifiers where Javadoc comments are checked. */
-    private AccessModifierOption[] accessModifiers = {
+    protected AccessModifierOption[] accessModifiers = {
         AccessModifierOption.PUBLIC,
         AccessModifierOption.PROTECTED,
         AccessModifierOption.PACKAGE,
@@ -378,16 +378,16 @@ public class JavadocMethodCheck extends AbstractCheck {
      * Control whether to ignore violations when a method has parameters but does
      * not have matching {@code param} tags in the javadoc.
      */
-    private boolean allowMissingParamTags;
+    protected boolean allowMissingParamTags;
 
     /**
      * Control whether to ignore violations when a method returns non-void type
      * and does not have a {@code return} tag in the javadoc.
      */
-    private boolean allowMissingReturnTag;
+    protected boolean allowMissingReturnTag;
 
     /** Specify the list of annotations that allow missed documentation. */
-    private List<String> allowedAnnotations = Collections.singletonList("Override");
+    protected List<String> allowedAnnotations = Collections.singletonList("Override");
 
     /**
      * Setter to control whether to validate {@code throws} tags.
@@ -472,7 +472,7 @@ public class JavadocMethodCheck extends AbstractCheck {
     }
 
     @Override
-    public final void visitToken(DetailAST ast) {
+    public void visitToken(DetailAST ast) {
         if (ast.getType() == TokenTypes.CLASS_DEF
                  || ast.getType() == TokenTypes.INTERFACE_DEF
                  || ast.getType() == TokenTypes.ENUM_DEF
@@ -485,7 +485,7 @@ public class JavadocMethodCheck extends AbstractCheck {
     }
 
     @Override
-    public final void leaveToken(DetailAST ast) {
+    public void leaveToken(DetailAST ast) {
         if (ast.getType() == TokenTypes.CLASS_DEF
             || ast.getType() == TokenTypes.INTERFACE_DEF
             || ast.getType() == TokenTypes.ENUM_DEF
@@ -502,7 +502,7 @@ public class JavadocMethodCheck extends AbstractCheck {
      * @param ast the AST to process. Guaranteed to not be PACKAGE_DEF or
      *             IMPORT tokens.
      */
-    private void processAST(DetailAST ast) {
+    protected void processAST(DetailAST ast) {
         if (shouldCheck(ast)) {
             final FileContents contents = getFileContents();
             final TextBlock textBlock = contents.getJavadocBefore(ast.getLineNo());
@@ -519,7 +519,7 @@ public class JavadocMethodCheck extends AbstractCheck {
      * @param ast a given node.
      * @return whether we should check a given node.
      */
-    private boolean shouldCheck(final DetailAST ast) {
+    protected boolean shouldCheck(final DetailAST ast) {
         final AccessModifierOption surroundingAccessModifier = CheckUtil
                 .getSurroundingAccessModifier(ast);
         final AccessModifierOption accessModifier = CheckUtil
@@ -536,7 +536,7 @@ public class JavadocMethodCheck extends AbstractCheck {
      * @param ast the token for the method
      * @param comment the Javadoc comment
      */
-    private void checkComment(DetailAST ast, TextBlock comment) {
+    protected void checkComment(DetailAST ast, TextBlock comment) {
         final List<JavadocTag> tags = getMethodTags(comment);
 
         if (!hasShortCircuitTag(ast, tags)) {
@@ -603,7 +603,7 @@ public class JavadocMethodCheck extends AbstractCheck {
      * @param comment the Javadoc comment
      * @return the tags found
      */
-    private static List<JavadocTag> getMethodTags(TextBlock comment) {
+    protected static List<JavadocTag> getMethodTags(TextBlock comment) {
         final String[] lines = comment.getText();
         final List<JavadocTag> tags = new ArrayList<>();
         int currentLine = comment.getStartLineNo() - 1;
@@ -704,7 +704,7 @@ public class JavadocMethodCheck extends AbstractCheck {
      * @param ast the method node.
      * @return the list of parameter nodes for ast.
      */
-    private static List<DetailAST> getParameters(DetailAST ast) {
+    protected static List<DetailAST> getParameters(DetailAST ast) {
         final DetailAST params = ast.findFirstToken(TokenTypes.PARAMETERS);
         final List<DetailAST> returnValue = new ArrayList<>();
 

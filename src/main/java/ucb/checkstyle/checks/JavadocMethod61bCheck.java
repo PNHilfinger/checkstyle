@@ -447,44 +447,18 @@ public class JavadocMethod61bCheck extends JavadocMethodCheck {
         }
     }
 
-    /**
-     * A setter to pass through and track the value of setAllowMissingParamTags,
-     * since the variable itself is private in the superclass.
-     * @param flag a {@code Boolean} value
-     */
-    @Override
-    public void setAllowMissingParamTags(boolean flag) {
-        super.setAllowMissingParamTags(flag);
-        allowMissingParamTags = flag;
-    }
-
-    /**
-     * A setter to pass through and track the value of setAllowMissingParamTags,
-     * since the variable itself is private in the superclass.
-     * @param flag a {@code Boolean} value
-     */
-    @Override
-    public void setAllowMissingParamTags(boolean flag) {
-        super.setAllowMissingParamTags(flag);
-        allowMissingParamTags = flag;
-    }
-
-    /**
-     * A setter to pass through and track the value of setAllowMissingReturnTag,
-     * since the variable itself is private in the superclass.
-     * @param flag a {@code Boolean} value
-     */
-    @Override
-    public void setAllowMissingReturnTag(boolean flag) {
-        super.setAllowMissingReturnTag(flag);
-        allowMissingReturnTag = flag;
-    }
-
-
-    /** Tracked value of the MissingParamTags flag. */
-    private boolean allowMissingParamTags = false;
-
-    /** Tracked value of the MissingReturnTag flag. */
-    private boolean allowMissingReturnTag = false;
-
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
