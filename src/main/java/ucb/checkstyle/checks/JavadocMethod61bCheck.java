@@ -20,34 +20,18 @@
 
 package ucb.checkstyle;
 
-import antlr.collections.AST;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.puppycrawl.tools.checkstyle.FileStatefulCheck;
 import com.puppycrawl.tools.checkstyle.api.DetailAST;
-import com.puppycrawl.tools.checkstyle.api.FileContents;
-import com.puppycrawl.tools.checkstyle.api.FullIdent;
-import com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocTagInfo;
-import com.puppycrawl.tools.checkstyle.api.Scope;
-import com.puppycrawl.tools.checkstyle.utils.ScopeUtil;
 import com.puppycrawl.tools.checkstyle.api.TextBlock;
-import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 import com.puppycrawl.tools.checkstyle.utils.CommonUtil;
 import com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck;
-import com.puppycrawl.tools.checkstyle.checks.javadoc.AbstractTypeAwareCheck;
-import com.puppycrawl.tools.checkstyle.utils.CheckUtil;
+import com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocTag;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 
 /**
@@ -78,6 +62,19 @@ import java.util.regex.PatternSyntaxException;
 @FileStatefulCheck
 public class JavadocMethod61bCheck extends JavadocMethodCheck {
 
+    /** Compiled regexp @inheritDoc tags. */
+    private static final Pattern MATCH_INHERITDOC =
+        CommonUtil.createPattern("\\{\\s*@(inheritDoc)\\s*\\}");
+
+    /** Matches potential narrative mention of parameter name. */
+    private static final Pattern NARRATIVE_PARAM_RE =
+        CommonUtil.createPattern("\\b[A-Z_][A-Z0-9_]*\\b");
+
+    /** Pattern describing a possible word describing return of a value. */
+    private static final Pattern NARRATIVE_RETURN_RE =
+        CommonUtil.createPattern("\\b(return|yield)(s|ing)?\\b",
+                                 Pattern.CASE_INSENSITIVE);
+
     /**
      * Controls whether to allow parameters to be described in running
      * text, written in all caps.
@@ -100,8 +97,11 @@ public class JavadocMethod61bCheck extends JavadocMethodCheck {
      */
     private String unusedParamFormat;
 
-    /** List of annotations that could allow missed documentation. */
-    private List<String> allowedAnnotations = Arrays.asList("Override");
+    /**
+     * The AST that is currently being processed.  This is not elegant, but
+     * is expedient for avoiding more modification of JavadocMethod.
+     */
+    protected DetailAST currentAst;
 
     /** Method names that match this pattern do not require javadoc blocks. */
     private Pattern ignoreMethodNamesRegex;
@@ -143,97 +143,77 @@ public class JavadocMethod61bCheck extends JavadocMethodCheck {
      */
     public void setUnusedParamFormat(String format) {
         unusedParamFormat = format;
-        unusedParamFormatRE = Pattern.compile(format);
+        if (format == null) {
+            unusedParamFormatRE = null;
+        } else {
+            unusedParamFormatRE = Pattern.compile(format);
+        }
     }
 
     @Override
-    protected final void processAST(DetailAST ast) {
-        if ((ast.getType() == TokenTypes.METHOD_DEF || ast.getType() == TokenTypes.CTOR_DEF)
-            && getMethodsNumberOfLine(ast) <= minLineCount
-            || hasAllowedAnnotations(ast)) {
-            return;
-        }
-        final Scope theScope = calculateScope(ast);
-        if (shouldCheck(ast, theScope)) {
-            final FileContents contents = getFileContents();
-            final TextBlock cmt = contents.getJavadocBefore(ast.getLineNo());
-
-            if (cmt == null) {
-                if (!isMissingJavadocAllowed(ast)) {
-                    log(ast, MSG_JAVADOC_MISSING);
-                }
-            }
-            else {
-                checkComment(ast, cmt);
-            }
-        }
+    protected void processAST(DetailAST ast) {
+        currentAst = ast;
+        super.processAST(ast);
     }
 
-    /**
-     * Checks the Javadoc for a method.
-     *
-     * @param ast the token for the method
-     * @param comment the Javadoc comment
-     */
-    private void checkComment(DetailAST ast, TextBlock comment) {
-        final String[] commentLines = comment.getText();
-        final int startLine = comment.getStartLineNo();
-        final int startCol = comment.getStartColNo();
-        final List<JavadocTag> tags =
-            getMethodTags(commentLines, startLine, startCol);
-
-        if (hasShortCircuitTag(ast, tags)) {
-            return;
+    @Override
+    protected List<JavadocTag> getMethodTags(TextBlock comment) {
+        List<JavadocTag> tags = super.getMethodTags(comment);
+        if (unusedParamFormatRE != null) {
+            for (Iterator<JavadocTag> it = tags.iterator(); it.hasNext();) {
+                JavadocTag tag = it.next();
+                if (tag.isParamTag()
+                    && unusedParamFormatRE.matcher(tag.getFirstArg()).matches()) {
+                    it.remove();
+                }
+            }
+        }
+        if (!allowNarrativeParamTags && !allowMissingParamTags) {
+            return tags;
+        }
+        boolean hasParamTags, hasReturnTag;
+        hasParamTags = hasReturnTag = false;
+    
+        for (JavadocTag tag : tags) {
+            hasParamTags |= tag.isParamTag();
+            hasReturnTag |= tag.isReturnTag();
         }
 
-        if (ast.getType() != TokenTypes.ANNOTATION_FIELD_DEF) {
-            // Check for inheritDoc
-            boolean hasInheritDocTag = false;
-            for (JavadocTag jt : tags) {
-                if (jt.isInheritDocTag()) {
-                    hasInheritDocTag = true;
+        if (allowNarrativeReturnTags && !hasReturnTag) {
+            for (String line : comment.getText()) {
+                if (NARRATIVE_RETURN_RE.matcher(line).find()) {
+                    tags.add(new JavadocTag(comment.getStartLineNo(), 0,
+                                                  "return"));
                     break;
                 }
             }
+        }
 
-            checkParams(tags, ast, commentLines, !hasInheritDocTag);
-            checkThrowsTags(tags, getThrows(ast), !hasInheritDocTag);
-            if (isFunction(ast)) {
-                checkReturnTag(tags, ast.getLineNo(), commentLines,
-                               !hasInheritDocTag);
+        if (allowNarrativeParamTags && !hasParamTags) {
+            List<DetailAST> params = getParameters(currentAst);
+            Matcher potentialParams = NARRATIVE_PARAM_RE.matcher("");
+            ArrayList<String> narrativeParams = new ArrayList<>();
+            for (String line : comment.getText()) {
+                potentialParams.reset(line);
+                while (potentialParams.find()) {
+                    String p = potentialParams.group();
+                    for (DetailAST param : params) {
+                        if (p.compareToIgnoreCase(param.getText()) == 0) {
+                            if (!narrativeParams.contains(param.getText())) {
+                                narrativeParams.add(param.getText());
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            for (String paramName : narrativeParams) {
+                tags.add(new JavadocTag(comment.getStartLineNo(), 0, "param",
+                                        paramName));
             }
         }
 
-        // Dump out all unused tags
-        for (JavadocTag jt : tags) {
-            if (!jt.isSeeOrInheritDocTag()) {
-                log(jt.getLineNo(), MSG_UNUSED_TAG_GENERAL);
-            }
-        }
-    }
-
-    /** ??
-     * Validates whether the Javadoc has a short circuit tag. Currently this is
-     * the inheritTag. Any errors are logged.
-     *
-     * @param ast the construct being checked
-     * @param tags the list of Javadoc tags associated with the construct
-     * @return true if the construct has a short circuit tag.
-     */
-    private boolean hasShortCircuitTag(final DetailAST ast,
-            final List<JavadocTag> tags) {
-        // Check if it contains {@inheritDoc} tag
-        if (tags.size() != 1
-                || !tags.get(0).isInheritDocTag()) {
-            return false;
-        }
-
-        // Invalid if private, a constructor, or a static method
-        if (!JavadocTagInfo.INHERIT_DOC.isValidOn(ast)) {
-            log(ast, MSG_INVALID_INHERIT_DOC);
-        }
-
-        return true;
+        return tags;
     }
 
     /**
@@ -242,221 +222,21 @@ public class JavadocMethod61bCheck extends JavadocMethodCheck {
      * @param ast the method node.
      * @return the list of parameter nodes for ast.
      */
-    private List<DetailAST> getParameters(DetailAST ast) {
-        final DetailAST params = ast.findFirstToken(TokenTypes.PARAMETERS);
-        final List<DetailAST> retVal = Lists.newArrayList();
-
-        DetailAST child = params.getFirstChild();
-        while (child != null) {
-            if (child.getType() == TokenTypes.PARAMETER_DEF) {
-                final DetailAST ident = child.findFirstToken(TokenTypes.IDENT);
-                retVal.add(ident);
-            }
-            child = child.getNextSibling();
-        }
-        return retVal;
-    }
-
-    /** Pattern describing a possible word describing return of a value. */
-    private static final Pattern RETURN_NARRATIVE_PATN =
-        Pattern.compile("\\b(return|yield)(s|ing)?\\b",
-                        Pattern.CASE_INSENSITIVE);
-
-    /**
-     * Returns true iff a word suggestive of returning appears in
-     * commentText.
-     *
-     * @param commentText lines of text to search.
-     * @return whether a narrative return description appears in commentText.
-     */
-    private boolean findReturnNarrative(final String[] commentText) {
-        Matcher matcher = RETURN_NARRATIVE_PATN.matcher("");
-        for (String line : commentText) {
-            matcher.reset(line);
-            if (matcher.find())
-                return true;
-        }
-        return false;
-    }
-
-    /**
-     * Checks that parameters and return value are properly commented on.
-     * Removes parameter tags from aTags as a side effect.
-     *
-     * @param aTags the tags to check
-     * @param aParent the node which takes the parameters
-     * @param commentText the text of the comment, as an array of lines.
-     * @param aReportExpectedTags whether we should report if do not find
-     *            expected tag
-     */
-    private void checkParams(final List<JavadocTag> aTags,
-                             final DetailAST aParent,
-                             final String[] commentText,
-                             boolean aReportExpectedTags) {
-        boolean tagFound = false;
-        boolean narrativeFound = false;
-
-        for (DetailAST param : getParameters(aParent)) {
-            JavadocTag tag = findRemoveParamTag(param.getText(), aTags);
-
-            if (unusedParamFormatRE != null
-                && unusedParamFormatRE.matcher(param.getText()).matches()) {
-                continue;
-            }
-
-            if (tag != null) {
-                tagFound = true;
-            } else if (allowNarrativeParamTags
-                       && findMention(param.getText(), commentText)) {
-                narrativeFound = true;
-            } else if (!allowMissingParamTags && aReportExpectedTags) {
-                log(param, "javadoc.expectedTag",
-                    JavadocTagInfo.PARAM.getText(), param.getText());
-            }
-        }
-
-        for (DetailAST typeParam : CheckUtil.getTypeParameters(aParent)) {
-            String tagName =
-                typeParam.findFirstToken(TokenTypes.IDENT).getText();
-            String tagText = "<" + tagName + ">";
-            JavadocTag tag = findRemoveParamTag(tagText, aTags);
-
-            if (unusedParamFormatRE != null
-                && unusedParamFormatRE.matcher(tagName).matches()) {
-                continue;
-            }
-
-            if (tag != null) {
-                tagFound = true;
-            } else if (allowNarrativeParamTags
-                       && findMention(tagName, commentText)) {
-                narrativeFound = true;
-            } else if (!allowMissingParamTags && aReportExpectedTags) {
-                log(typeParam, "javadoc.expectedTag",
-                    JavadocTagInfo.PARAM.getText(), tagText);
-            }
-        }
-
-        if (tagFound && narrativeFound) {
-            log(aParent, "javadoc.mixedStyle");
-        }
-
-        final ListIterator<JavadocTag> tagIt = aTags.listIterator();
-        while (tagIt.hasNext()) {
-            JavadocTag tag = tagIt.next();
-            if (tag.isParamTag()) {
-                log(tag.getLineNo(), tag.getColumnNo(), "javadoc.unusedTag",
-                    "@param", tag.getFirstArg());
-                tagIt.remove();
-            }
-        }
-    }
-
-    /**
-     * Checks for only one return tag. All return tags will be removed from the
-     * supplied list.
-     *
-     * @param tags the tags to check
-     * @param lineNo the line number of the expected tag
-     * @param reportExpectedTags whether we should report if do not find
-     *            expected tag
-     */
-    private void checkReturnTag(List<JavadocTag> tags, int lineNo,
-                                final String[] commentText,
-                                boolean reportExpectedTags) {
-        // Loop over tags finding return tags. After the first one, report an
-        // error.
-        boolean found = false;
-        final ListIterator<JavadocTag> it = tags.listIterator();
-        while (it.hasNext()) {
-            final JavadocTag jt = it.next();
-            if (jt.isReturnTag()) {
-                if (found) {
-                    log(jt.getLineNo(), jt.getColumnNo(),
-                        MSG_DUPLICATE_TAG,
-                        JavadocTagInfo.RETURN.getText());
-                }
-                found = true;
-                it.remove();
-            }
-        }
-
-        // Handle there being no @return tags :- unless
-        // the user has chosen to suppress these problems
-        if (!found && !allowMissingReturnTag && reportExpectedTags
-            && (!allowNarrativeReturnTags
-                || !findReturnNarrative(commentText))) {
-            log(lineNo, MSG_RETURN_EXPECTED);
-        }
-    }
-
-    /**
-     * Checks a set of tags for matching throws.
-     *
-     * @param tags the tags to check
-     * @param aThrows the throws to check
-     * @param aReportExpectedTags whether we should report if do not find
-     *            expected tag
-     */
-    private void checkThrowsTags(List<JavadocTag> tags,
-            List<ExceptionInfo> aThrows, boolean reportExpectedTags) {
-        // Loop over the tags, checking to see they exist in the throws.
-        final ListIterator<JavadocTag> tagIt = tags.listIterator();
-        while (tagIt.hasNext()) {
-            final JavadocTag tag = tagIt.next();
-
-            if (!tag.isThrowsTag()) {
-                continue;
-            }
-
-            tagIt.remove();
-
-            // Loop looking for matching throw
-            final String documentedEx = tag.getFirstArg();
-            final Token token = new Token(tag.getFirstArg(), tag.getLineNo(), tag
-                    .getColumnNo());
-            final AbstractClassInfo documentedCI = createClassInfo(token,
-                    getCurrentClassName());
-
-            if (!exceptionMatchedByName(aThrows,
-                                        documentedCI.getName().getText())
-                && !exceptionMatchedByClass(aThrows,
-                                            documentedCI.getClazz())) {
-                // Handle extra JavadocTag.
-                boolean reqd = true;
-                if (allowUndeclaredRTE) {
-                    reqd = !isUnchecked(documentedCI.getClazz());
-                }
-
-                if (reqd) {
-                    log(tag.getLineNo(), tag.getColumnNo(),
-                        "javadoc.unusedTag",
-                        JavadocTagInfo.THROWS.getText(),
-                        tag.getFirstArg());
+    @Override
+    protected List<DetailAST> getParameters(DetailAST ast) {
+        List<DetailAST> params = super.getParameters(ast);
+        if (unusedParamFormatRE != null) {
+            for (Iterator<DetailAST> it = params.iterator(); it.hasNext();) {
+                DetailAST param = it.next();
+                if (unusedParamFormatRE.matcher(param.getText()).matches()) {
+                    it.remove();
                 }
             }
         }
-
-        if (!allowMissingThrowsTags && reportExpectedTags) {
-            for (ExceptionInfo ei : aThrows) {
-                if (!ei.isFound()) {
-                    final Token fi = ei.getName();
-                    log(fi.getLineNo(), fi.getColumnNo(),
-                        "javadoc.expectedTag",
-                        JavadocTagInfo.THROWS.getText(), fi.getText());
-                }
-            }
-        }
+        return params;
     }
 
 }
-
-
-
-
-
-
-
 
 
 

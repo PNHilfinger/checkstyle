@@ -603,7 +603,7 @@ public class JavadocMethodCheck extends AbstractCheck {
      * @param comment the Javadoc comment
      * @return the tags found
      */
-    protected static List<JavadocTag> getMethodTags(TextBlock comment) {
+    protected List<JavadocTag> getMethodTags(TextBlock comment) {
         final String[] lines = comment.getText();
         final List<JavadocTag> tags = new ArrayList<>();
         int currentLine = comment.getStartLineNo() - 1;
@@ -704,7 +704,7 @@ public class JavadocMethodCheck extends AbstractCheck {
      * @param ast the method node.
      * @return the list of parameter nodes for ast.
      */
-    protected static List<DetailAST> getParameters(DetailAST ast) {
+    protected List<DetailAST> getParameters(DetailAST ast) {
         final DetailAST params = ast.findFirstToken(TokenTypes.PARAMETERS);
         final List<DetailAST> returnValue = new ArrayList<>();
 
