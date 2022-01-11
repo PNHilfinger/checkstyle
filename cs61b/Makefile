@@ -6,6 +6,8 @@ UCB_SRC = $(shell find ../src/main/java/ucb -name '*.java')
 
 COM_SRC = $(filter-out %/CheckstyleAntTask.java, $(shell find ../src/main/java/com -name '*.java'))
 
+JFLAGS = -g
+
 ifndef LIBDIR
     ifdef INSTALLDIR
         LIBDIR = $(INSTALLDIR)/lib
