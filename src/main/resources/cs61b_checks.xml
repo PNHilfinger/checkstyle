@@ -39,7 +39,7 @@
       https://checkstyle.org/config.html#Checker
       <property name="basedir" value="${basedir}"/>
   -->
-  <property name="basedir" value="${basedir}"/>
+  <property name="basedir" value="${user.dir}"/>
 
   <property name="severity" value="error"/>
 
@@ -125,7 +125,7 @@
     <!-- <module name="JavadocVariable"/> -->
     <module name="JavadocVariable">
       <property name="tokens" value="VARIABLE_DEF">
-    <module/>
+    </module>
 
     <module name="JavadocStyle"/>
     <!-- <module name="MissingJavadocMethod"/> -->
