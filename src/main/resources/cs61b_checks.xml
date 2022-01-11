@@ -80,6 +80,7 @@
   </module>
   <module name="LineLength">
     <property name="fileExtensions" value="java"/>
+    <property name="max" value="80"/>
   </module>
 
   <!-- Checks for whitespace                               -->
@@ -113,8 +114,6 @@
       <property name="allowNarrativeReturnTags" value="true"/>
       <property name="unusedParamFormat" 
                 value="^(dummy|ignored|unused).*$"/>
-      <!--For now:-->
-      <property name="allowMissingThrowsTags" value="true"/>
     </module>
     <!-- <module name="JavadocType"> -->
     <module name="JavadocType">
@@ -124,7 +123,7 @@
     
     <!-- <module name="JavadocVariable"/> -->
     <module name="JavadocVariable">
-      <property name="tokens" value="VARIABLE_DEF">
+      <property name="tokens" value="VARIABLE_DEF"/>
     </module>
 
     <module name="JavadocStyle"/>
@@ -216,9 +215,6 @@
     <!-- See https://checkstyle.org/config_sizes.html -->
     <module name="MethodLength"/>
     <!-- <module name="ParameterNumber"/> -->
-    <module name="LineLength">
-      <property name="max" value="80"/>
-    </module>
     <module name="MethodLength">
       <property name="max" value="60"/>
     </module>
@@ -232,7 +228,7 @@
 
     <!-- Checks for whitespace                               -->
     <!-- See https://checkstyle.org/config_whitespace.html -->
-    <-- <module name="EmptyForIteratorPad"/> -->
+    <!-- <module name="EmptyForIteratorPad"/> -->
     <module name="GenericWhitespace"/>
     <!-- <module name="MethodParamPad"/> -->
     <!-- <module name="NoWhitespaceAfter"/> -->
@@ -300,7 +296,7 @@
 
     
     <module name="MissingSwitchDefault"/>
-    <module name="MultipleVariableDeclarations"/>
+    <!-- <module name="MultipleVariableDeclarations"/> -->
     <module name="SimplifyBooleanExpression"/>
     <module name="SimplifyBooleanReturn"/>
 
