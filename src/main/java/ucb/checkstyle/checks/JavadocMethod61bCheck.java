@@ -23,6 +23,8 @@ package ucb.checkstyle.checks;
 import com.puppycrawl.tools.checkstyle.FileStatefulCheck;
 import com.puppycrawl.tools.checkstyle.api.DetailAST;
 import com.puppycrawl.tools.checkstyle.api.TextBlock;
+import com.puppycrawl.tools.checkstyle.api.TokenTypes;
+import com.puppycrawl.tools.checkstyle.utils.CheckUtil;
 import com.puppycrawl.tools.checkstyle.utils.CommonUtil;
 import com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck;
 import com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocTag;
@@ -190,17 +192,28 @@ public class JavadocMethod61bCheck extends JavadocMethodCheck {
         }
 
         if (allowNarrativeParamTags && !hasParamTags) {
-            List<DetailAST> params = getParameters(currentAst);
             Matcher potentialParams = NARRATIVE_PARAM_RE.matcher("");
             ArrayList<String> narrativeParams = new ArrayList<>();
             for (String line : comment.getText()) {
                 potentialParams.reset(line);
                 while (potentialParams.find()) {
                     String p = potentialParams.group();
-                    for (DetailAST param : params) {
+                    for (DetailAST param : getParameters(currentAst)) {
                         if (p.compareToIgnoreCase(param.getText()) == 0) {
                             if (!narrativeParams.contains(param.getText())) {
                                 narrativeParams.add(param.getText());
+                            }
+                            break;
+                        }
+                    }
+                    for (DetailAST typeParam :
+                             CheckUtil.getTypeParameters(currentAst)) {
+                        String tagName =
+                            typeParam.findFirstToken(TokenTypes.IDENT).getText();
+                        if (p.compareToIgnoreCase(tagName) == 0) {
+                            String paramName = "<" + tagName + ">";
+                            if (!narrativeParams.contains(paramName)) {
+                                narrativeParams.add(paramName);
                             }
                             break;
                         }
