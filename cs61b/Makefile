@@ -2,6 +2,8 @@ CHECKSTYLE_VERSION = 9.2.1
 
 OTHER_CLASSES = $(shell pwd)/../target/checkstyle-$(CHECKSTYLE_VERSION)-all.jar
 
+RESOURCES = $(shell pwd)/../src/main/resources
+
 UCB_SRC = $(shell find ../src/main/java/ucb -name '*.java')
 
 COM_SRC = $(filter-out %/CheckstyleAntTask.java, $(shell find ../src/main/java/com -name '*.java'))
@@ -20,6 +22,7 @@ default: alt-compile
 
 alt-compile: classes $(OTHER_CLASSES)
 	javac -cp $(OTHER_CLASSES):classes -d classes $(JFLAGS) $(UCB_SRC) $(COM_SRC)
+	rsync -a $(RESOURCES)/ classes
 
 build:
 	(cd ..; mvn -P assembly package)
